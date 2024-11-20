@@ -9,6 +9,8 @@ type Member = {
     id: number
     username: string | undefined
 }
+type ChatId = number | string | undefined;
+type UserId = number | undefined;
 
 const members: Member[] = []
 
@@ -76,6 +78,48 @@ bot.command("stop", async (ctx) => {
         await ctx.reply("Произошла ошибка. Попробуйте позже.")
     }
 
+})
+
+bot.command("ban", async (ctx) => {
+    try {
+        const chatId: ChatId = ctx.message?.chat.id
+        const userIdExecuting: UserId = ctx.message?.from.id
+
+        if (chatId && userIdExecuting) {
+            const chatMember = await ctx.api.getChatMember(chatId, userIdExecuting);
+            if (!["administrator", "creator"].includes(chatMember.status)) {
+                await ctx.reply("Не достаточно прав.");
+                return;
+            }
+        }
+
+        if (ctx.message?.reply_to_message) {
+            const userIdTarget: UserId = ctx.message?.reply_to_message?.from?.id
+            if (chatId && userIdTarget) {
+                await ctx.api.banChatMember(chatId, userIdTarget);
+                await ctx.reply(`Пользователь @${ctx.message?.reply_to_message?.from?.username} забанен успешно.`)
+                return;
+            } else {
+                await ctx.reply("Сбой обработки запроса")
+                return
+            }
+        }
+
+        if (ctx.match && ctx.match.startsWith('@')) {
+            const username = ctx.match.slice(1)
+            const targetArray = members.filter((member) => member.username === username)
+            console.log(targetArray)
+            const userTarget = targetArray[0]
+            console.log(userTarget.id);
+            chatId && userTarget ? await ctx.banChatMember(userTarget.id).then(()=> ctx.reply(`Пользователь @${userTarget.username} забанен успешно.`)): await ctx.reply("Сбой обработки запроса");
+            return
+        }
+
+        await ctx.reply("Укажите пользователя для блокировки, ответив на сообщение командой или указав username.");
+    } catch (error) {
+        console.log(error);
+        await ctx.reply("Произошла ошибка. Попробуйте позже.")
+    }
 })
 
 // noinspection JSIgnoredPromiseFromCall
