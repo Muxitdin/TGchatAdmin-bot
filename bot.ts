@@ -18,8 +18,8 @@ const settings = {
     stopMessage: "Добрый день 🤗\n\Все участники опубликовали рекламный пост. Благодарим за участие и своевременные публикации.\n\nЖелаем всем хороших результатов и будем благодарны, если поделитесь предварительными результатами! 🙏\n\nПожалуйста, не забывайте выдержать пост в ленте!🙏\n\nЖдем вас в следующие активы!\n\nНапоминаем, что обо всех активностях мы информируем здесь ⬇️\n\nhttps://t.me/tema_podborka\n\nС уважением!",
 }
 
-bot.command("start", (ctx) => {
-    ctx.reply("Добро пожаловать. Запущен и работает!")
+bot.command("start", async (ctx) => {
+    await ctx.reply("Добро пожаловать. Запущен и работает!")
 })
 
 bot.on("chat_member", async (ctx) => {
@@ -33,7 +33,7 @@ bot.on("chat_member", async (ctx) => {
     }
 })
 
-bot.on("message", (ctx, next) => {
+bot.on("message", async (ctx, next) => {
     console.log(ctx.message.from)
 
     const user: User = ctx.message.from
@@ -45,7 +45,7 @@ bot.on("message", (ctx, next) => {
     }
     console.log(members)
 
-    next(); // continue with the next middleware
+    await next(); // continue with the next middleware
 })
 
 bot.command("all", async (ctx) => {
@@ -63,7 +63,7 @@ bot.command("all", async (ctx) => {
         await ctx.reply(message)
     } catch (error) {
         console.log("Ошибка в /all:", error)
-        ctx.reply("Произошла ошибка. Попробуйте позже.")
+        await ctx.reply("Произошла ошибка. Попробуйте позже.")
     }
 })
 
@@ -78,6 +78,7 @@ bot.command("stop", async (ctx) => {
 
 })
 
+// noinspection JSIgnoredPromiseFromCall
 bot.start({
     allowed_updates: ["chat_member", "message"],
 })
