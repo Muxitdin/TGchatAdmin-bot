@@ -29,7 +29,9 @@ bot.on("chat_member", async (ctx) => {
     if (change.new_chat_member.status === "member") {
         const member = change.new_chat_member.user
         if (!member.username) return
-        members.push({ id: member.id, username: member.username || "undefined" })
+        if (!members.some(m => m.username === member.username)) {
+            members.push({ id: member.id, username: member.username || "undefined" })
+        }
         const welcome = settings.welcomeMessage.replace("(Имя)", `@${member.username}` || member.first_name)
         await ctx.reply(welcome)
     }
@@ -97,7 +99,7 @@ bot.command("ban", async (ctx) => {
             const userIdTarget: UserId = ctx.message?.reply_to_message?.from?.id
             if (chatId && userIdTarget) {
                 await ctx.api.banChatMember(chatId, userIdTarget);
-                await ctx.reply(`Пользователь @${ctx.message?.reply_to_message?.from?.username} забанен успешно.`)
+                await ctx.reply(`Пользователь @${ctx.message?.reply_to_message?.from?.username} забанен.`)
                 return;
             } else {
                 await ctx.reply("Сбой обработки запроса")
@@ -111,7 +113,14 @@ bot.command("ban", async (ctx) => {
             console.log(targetArray)
             const userTarget = targetArray[0]
             console.log(userTarget.id);
-            chatId && userTarget ? await ctx.banChatMember(userTarget.id).then(()=> ctx.reply(`Пользователь @${userTarget.username} забанен успешно.`)): await ctx.reply("Сбой обработки запроса");
+            if (chatId && userTarget) {
+                await ctx.banChatMember(userTarget.id).then(() => {
+                    ctx.reply(`Пользователь @${userTarget.username} забанен.`);
+                    console.log(members)
+                });
+            } else {
+                await ctx.reply("Сбой обработки запроса. Убедитесь, что указали правильный username.");
+            }
             return
         }
 
@@ -121,6 +130,63 @@ bot.command("ban", async (ctx) => {
         await ctx.reply("Произошла ошибка. Попробуйте позже.")
     }
 })
+
+bot.command("unban", async (ctx) => {
+    try {
+        const chatId: ChatId = ctx.message?.chat.id;
+        const userIdExecuting: UserId = ctx.message?.from.id;
+
+        if (chatId && userIdExecuting) {
+            const chatMember = await ctx.api.getChatMember(chatId, userIdExecuting);
+            if (!["administrator", "creator"].includes(chatMember.status)) {
+                await ctx.reply("Не достаточно прав.");
+                return;
+            }
+        }
+
+        if (ctx.message?.reply_to_message) {
+            const userIdTarget: UserId = ctx.message?.reply_to_message?.from?.id;
+            if (chatId && userIdTarget) {
+                await ctx.api.unbanChatMember(chatId, userIdTarget);
+                await ctx.reply(`Пользователь @${ctx.message?.reply_to_message?.from?.username} разблокирован.`);
+                try {
+                    await ctx.api.sendMessage(chatId, `@${ctx.message?.reply_to_message?.from?.username}, вы были добавлены обратно в чат. Добро пожаловать!`);
+                } catch (error) {
+                    console.error("Ошибка при отправке сообщения участника:", error);
+                }
+            } else {
+                await ctx.reply("Сбой обработки запроса.");
+            }
+            return
+        }
+
+        // Если команда дана с упоминанием username
+        if (ctx.match && ctx.match.startsWith('@')) {
+            const username = ctx.match.slice(1);
+            console.log(members);
+            const targetArray = members.filter((member) => member.username === username);
+            const userTarget = targetArray[0];
+            console.log(chatId, userTarget)
+            if (chatId && userTarget) {
+                await ctx.api.unbanChatMember(chatId, userTarget.id);
+                await ctx.reply(`Пользователь @${userTarget.username} разблокирован.`);
+                try {
+                    await ctx.api.sendMessage(userTarget.id, `@${userTarget.username}, вы были добавлены обратно в чат ${ctx.chat.username}. Добро пожаловать!`);
+                } catch (error) {
+                    console.error("Ошибка при отправке сообщения участника:", error);
+                }
+            } else {
+                await ctx.reply("Сбой обработки запроса. Убедитесь, что указали правильный username.");
+            }
+            return;
+        }
+
+        await ctx.reply("Укажите пользователя для разблокировки, ответив на сообщение командой или указав username.");
+    } catch (error) {
+        console.log(error);
+        await ctx.reply("Произошла ошибка. Попробуйте позже.");
+    }
+});
 
 // noinspection JSIgnoredPromiseFromCall
 bot.start({
