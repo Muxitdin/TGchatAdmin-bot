@@ -1,5 +1,5 @@
 import { Bot } from "grammy"
-import { User } from "@grammyjs/types"
+import { User, ChatPermissions } from "@grammyjs/types"
 import dotenv from "dotenv"
 dotenv.config()
 
@@ -171,7 +171,7 @@ bot.command("unban", async (ctx) => {
                 await ctx.api.unbanChatMember(chatId, userTarget.id);
                 await ctx.reply(`Пользователь @${userTarget.username} разблокирован.`);
                 try {
-                    await ctx.api.sendMessage(userTarget.id, `@${userTarget.username}, вы были добавлены обратно в чат ${ctx.chat.username}. Добро пожаловать!`);
+                    await ctx.api.sendMessage(userTarget.id, `@${userTarget.username}, вы были добавлены обратно в чат @${ctx.chat.username}. Добро пожаловать!`);
                 } catch (error) {
                     console.error("Ошибка при отправке сообщения участника:", error);
                 }
@@ -187,6 +187,64 @@ bot.command("unban", async (ctx) => {
         await ctx.reply("Произошла ошибка. Попробуйте позже.");
     }
 });
+
+bot.command("mute", async (ctx) => {
+    try {
+        const chatId: ChatId = ctx.message?.chat.id
+        const userIdExecuting: UserId = ctx.message?.from.id
+
+        if (chatId && userIdExecuting) {
+            const chatMember = await ctx.api.getChatMember(chatId, userIdExecuting);
+            if (!["administrator", "creator"].includes(chatMember.status)) {
+                await ctx.reply("Не достаточно прав.");
+                return;
+            }
+        }
+
+        const mutePermissions: any = {
+            can_send_messages: false,
+            can_send_media_messages: false,
+            can_send_polls: false,
+            can_send_other_messages: false,
+        };
+
+        const externalReplyOrigin = ctx.message?.external_reply?.origin;
+
+        if (externalReplyOrigin && "sender_user" in externalReplyOrigin) {
+            const userIdTarget = externalReplyOrigin.sender_user.id as UserId
+            if (chatId && userIdTarget) {
+                await ctx.api.restrictChatMember(chatId, userIdTarget, {...mutePermissions});
+                await ctx.reply(`Пользователь @${externalReplyOrigin.sender_user.username} в муте.`)
+                return;
+            } else {
+                await ctx.reply("Сбой обработки запроса")
+                return
+            }
+        }
+
+        if (ctx.match && ctx.match.startsWith('@')) {
+            const username = ctx.match.slice(1)
+            const targetArray = members.filter((member) => member.username === username)
+            console.log("111: " + targetArray)
+            const userTarget = targetArray[0]
+            console.log("222: "+userTarget.id);
+            if (chatId && userTarget) {
+                await ctx.api.restrictChatMember(chatId, userTarget.id, {...mutePermissions}).then(() => {
+                    ctx.reply(`Пользователь @${userTarget.username} в муте.`);
+                    console.log(members)
+                });
+            } else {
+                await ctx.reply("Сбой обработки запроса. Убедитесь, что указали правильный username.");
+            }
+            return
+        }
+
+        await ctx.reply("Укажите пользователя для мута, ответив на сообщение командой или указав username.");
+    } catch (error) {
+        console.log(error);
+        await ctx.reply("Произошла ошибка. Попробуйте позже.")
+    }
+})
 
 // noinspection JSIgnoredPromiseFromCall
 bot.start({
