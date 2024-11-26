@@ -1,5 +1,5 @@
 import { Bot } from "grammy"
-import { User, ChatPermissions } from "@grammyjs/types"
+import { User } from "@grammyjs/types"
 import dotenv from "dotenv"
 dotenv.config()
 
@@ -17,7 +17,7 @@ const members: Member[] = []
 const settings = {
     welcomeMessage: "(Имя), рады Вас приветствовать в нашей группе! 🤗\n\nПожалуйста, ознакомьтесь с правилами и оставьте информацию о вашем канале по образцу (см. пост в закрепе)!",
     allMessage: "Добрый день! 🤗\n\nИнформируем Вас об открытии нового набора в актив!\n\nУспейте принять участие!\n\nЖдем информацию о вашем канале!",
-    stopMessage: "Добрый день 🤗\n\Все участники опубликовали рекламный пост. Благодарим за участие и своевременные публикации.\n\nЖелаем всем хороших результатов и будем благодарны, если поделитесь предварительными результатами! 🙏\n\nПожалуйста, не забывайте выдержать пост в ленте!🙏\n\nЖдем вас в следующие активы!\n\nНапоминаем, что обо всех активностях мы информируем здесь ⬇️\n\nhttps://t.me/tema_podborka\n\nС уважением!",
+    stopMessage: "Добрый день 🤗\n\nВсе участники опубликовали рекламный пост. Благодарим за участие и своевременные публикации.\n\nЖелаем всем хороших результатов и будем благодарны, если поделитесь предварительными результатами! 🙏\n\nПожалуйста, не забывайте выдержать пост в ленте!🙏\n\nЖдем вас в следующие активы!\n\nНапоминаем, что обо всех активностях мы информируем здесь ⬇️\n\nhttps://t.me/tema_podborka\n\nС уважением!",
 }
 
 bot.command("start", async (ctx) => {
@@ -95,11 +95,12 @@ bot.command("ban", async (ctx) => {
             }
         }
 
-        if (ctx.message?.reply_to_message) {
-            const userIdTarget: UserId = ctx.message?.reply_to_message?.from?.id
+        const externalReplyOrigin = ctx.message?.external_reply?.origin;
+        if (externalReplyOrigin && "sender_user" in externalReplyOrigin) {
+            const userIdTarget: UserId = externalReplyOrigin.sender_user.id
             if (chatId && userIdTarget) {
                 await ctx.api.banChatMember(chatId, userIdTarget);
-                await ctx.reply(`Пользователь @${ctx.message?.reply_to_message?.from?.username} забанен.`)
+                await ctx.reply(`Пользователь @${externalReplyOrigin.sender_user.username} забанен.`)
                 return;
             } else {
                 await ctx.reply("Сбой обработки запроса")
@@ -144,13 +145,14 @@ bot.command("unban", async (ctx) => {
             }
         }
 
-        if (ctx.message?.reply_to_message) {
-            const userIdTarget: UserId = ctx.message?.reply_to_message?.from?.id;
+        const externalReplyOrigin = ctx.message?.external_reply?.origin;
+        if (externalReplyOrigin && "sender_user" in externalReplyOrigin) {
+            const userIdTarget: UserId = externalReplyOrigin.sender_user.id
             if (chatId && userIdTarget) {
                 await ctx.api.unbanChatMember(chatId, userIdTarget);
-                await ctx.reply(`Пользователь @${ctx.message?.reply_to_message?.from?.username} разблокирован.`);
+                await ctx.reply(`Пользователь @${externalReplyOrigin.sender_user.username} разблокирован.`);
                 try {
-                    await ctx.api.sendMessage(chatId, `@${ctx.message?.reply_to_message?.from?.username}, вы были добавлены обратно в чат. Добро пожаловать!`);
+                    await ctx.api.sendMessage(chatId, `@${externalReplyOrigin.sender_user.username}, вы были добавлены обратно в чат. Добро пожаловать!`);
                 } catch (error) {
                     console.error("Ошибка при отправке сообщения участника:", error);
                 }
@@ -160,7 +162,6 @@ bot.command("unban", async (ctx) => {
             return
         }
 
-        // Если команда дана с упоминанием username
         if (ctx.match && ctx.match.startsWith('@')) {
             const username = ctx.match.slice(1);
             console.log(members);
