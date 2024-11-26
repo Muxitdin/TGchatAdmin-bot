@@ -111,13 +111,10 @@ bot.command("ban", async (ctx) => {
         if (ctx.match && ctx.match.startsWith('@')) {
             const username = ctx.match.slice(1)
             const targetArray = members.filter((member) => member.username === username)
-            console.log(targetArray)
             const userTarget = targetArray[0]
-            console.log(userTarget.id);
             if (chatId && userTarget) {
                 await ctx.banChatMember(userTarget.id).then(() => {
                     ctx.reply(`Пользователь @${userTarget.username} забанен.`);
-                    console.log(members)
                 });
             } else {
                 await ctx.reply("Сбой обработки запроса. Убедитесь, что указали правильный username.");
@@ -164,10 +161,8 @@ bot.command("unban", async (ctx) => {
 
         if (ctx.match && ctx.match.startsWith('@')) {
             const username = ctx.match.slice(1);
-            console.log(members);
             const targetArray = members.filter((member) => member.username === username);
             const userTarget = targetArray[0];
-            console.log(chatId, userTarget)
             if (chatId && userTarget) {
                 await ctx.api.unbanChatMember(chatId, userTarget.id);
                 await ctx.reply(`Пользователь @${userTarget.username} разблокирован.`);
@@ -226,13 +221,10 @@ bot.command("mute", async (ctx) => {
         if (ctx.match && ctx.match.startsWith('@')) {
             const username = ctx.match.slice(1)
             const targetArray = members.filter((member) => member.username === username)
-            console.log("111: " + targetArray)
             const userTarget = targetArray[0]
-            console.log("222: "+userTarget.id);
             if (chatId && userTarget) {
                 await ctx.api.restrictChatMember(chatId, userTarget.id, {...mutePermissions}).then(() => {
                     ctx.reply(`Пользователь @${userTarget.username} в муте.`);
-                    console.log(members)
                 });
             } else {
                 await ctx.reply("Сбой обработки запроса. Убедитесь, что указали правильный username.");
@@ -241,6 +233,60 @@ bot.command("mute", async (ctx) => {
         }
 
         await ctx.reply("Укажите пользователя для мута, ответив на сообщение командой или указав username.");
+    } catch (error) {
+        console.log(error);
+        await ctx.reply("Произошла ошибка. Попробуйте позже.")
+    }
+})
+
+bot.command("unmute", async (ctx) => {
+    try {
+        const chatId: ChatId = ctx.message?.chat.id
+        const userIdExecuting: UserId = ctx.message?.from.id
+
+        if (chatId && userIdExecuting) {
+            const chatMember = await ctx.api.getChatMember(chatId, userIdExecuting);
+            if (!["administrator", "creator"].includes(chatMember.status)) {
+                await ctx.reply("Не достаточно прав.");
+                return;
+            }
+        }
+
+        const defaultPermissions: any = {
+            can_send_messages: true,
+            can_send_media_messages: true,
+            can_send_polls: true,
+            can_send_other_messages: true,
+        };
+
+        const externalReplyOrigin = ctx.message?.external_reply?.origin;
+        if (externalReplyOrigin && "sender_user" in externalReplyOrigin) {
+            const userIdTarget = externalReplyOrigin.sender_user.id as UserId
+            if (chatId && userIdTarget) {
+                await ctx.api.restrictChatMember(chatId, userIdTarget, {...defaultPermissions});
+                await ctx.reply(`Пользователь @${externalReplyOrigin.sender_user.username} размучен.`)
+                return;
+            } else {
+                await ctx.reply("Сбой обработки запроса")
+                return
+            }
+        }
+
+        if (ctx.match && ctx.match.startsWith('@')) {
+            const username = ctx.match.slice(1)
+            const targetArray = members.filter((member) => member.username === username)
+            const userTarget = targetArray[0]
+            if (chatId && userTarget) {
+                await ctx.api.restrictChatMember(chatId, userTarget.id, {...defaultPermissions}).then(() => {
+                    ctx.reply(`Пользователь @${userTarget.username} размучен.`);
+                });
+            } else {
+                await ctx.reply("Сбой обработки запроса. Убедитесь, что указали правильный username.");
+            }
+            return
+        }
+
+        await ctx.reply("Укажите пользователя, ответив на сообщение командой или указав username.");
     } catch (error) {
         console.log(error);
         await ctx.reply("Произошла ошибка. Попробуйте позже.")
